@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard · Base de Clientes — Comparativo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:#0f0d0e; --surface:#1a1618; --surface2:#241f22;
+    --border:rgba(196,163,90,.15); --gold:#C4A35A; --gold-dim:rgba(196,163,90,.12);
+    --cream:#FAF7F5; --muted:rgba(250,247,245,.45);
+    --green:#3ecf8e; --red:#f06e6e; --blue:#6eb8f0; --purple:#c47ab0;
+    --up:#3ecf8e; --down:#f06e6e; --neutral:rgba(196,163,90,.7);
+    --radius:16px; --radius-sm:10px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--cream);min-height:100vh;padding:28px 28px 60px}
+
+  /* ── HEADER ── */
+  .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;gap:20px}
+  .eyebrow{font-size:11px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
+  .header h1{font-family:'DM Serif Display',serif;font-size:clamp(24px,3vw,36px);font-weight:400;color:var(--cream);line-height:1.1}
+  .header h1 em{font-style:italic;color:var(--gold)}
+  .header-right{display:flex;gap:12px;flex-shrink:0}
+  .week-badge{background:var(--gold-dim);border:1px solid var(--border);border-radius:100px;padding:10px 18px;text-align:center}
+  .week-badge .num{font-family:'DM Serif Display',serif;font-size:22px;color:var(--gold);display:block;line-height:1}
+  .week-badge .lbl{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:3px;display:block}
+
+  /* ── TABS ── */
+  .nav-tabs{display:flex;gap:8px;margin-bottom:26px;border-bottom:1px solid var(--border);padding-bottom:0}
+  .tab-btn{background:none;border:none;padding:12px 20px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;letter-spacing:.03em;margin-bottom:-1px}
+  .tab-btn:hover{color:var(--cream)}
+  .tab-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
+  .tab-pane{display:none}
+  .tab-pane.active{display:block}
+
+  /* ── KPI STRIP ── */
+  .kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 18px 16px;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}
+  .kpi:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.4)}
+  .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+  .kpi.gold::before{background:var(--gold)}
+  .kpi.green::before{background:var(--green)}
+  .kpi.red::before{background:var(--red)}
+  .kpi.blue::before{background:var(--blue)}
+  .kpi-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+  .kpi-value{font-family:'DM Serif Display',serif;font-size:34px;color:var(--cream);line-height:1}
+  .kpi-sub{font-size:11px;color:var(--muted);margin-top:5px}
+  .kpi-pct{font-size:12px;font-weight:600;margin-top:4px}
+  .kpi.gold .kpi-pct{color:var(--gold)} .kpi.green .kpi-pct{color:var(--green)} .kpi.red .kpi-pct{color:var(--red)} .kpi.blue .kpi-pct{color:var(--blue)}
+
+  /* ── GRID ── */
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:20px}
+
+  /* ── CARD ── */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px 22px;overflow:hidden}
+  .card-title{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:18px;display:flex;align-items:center;gap:8px}
+  .card-title svg{width:14px;height:14px;flex-shrink:0}
+
+  /* ── DONUT ── */
+  .donut-wrap{position:relative;max-width:190px;margin:0 auto 18px}
+  .donut-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}
+  .donut-center .dc-num{font-family:'DM Serif Display',serif;font-size:20px;color:var(--cream);display:block;line-height:1}
+  .donut-center .dc-lbl{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:2px;display:block}
+
+  /* ── LEGEND ── */
+  .legend{list-style:none;display:flex;flex-direction:column;gap:8px}
+  .legend li{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--cream)}
+  .legend .dot{width:9px;height:9px;border-radius:3px;flex-shrink:0}
+  .legend .pct{margin-left:auto;font-size:11px;font-weight:600;color:var(--muted)}
+  .legend .count{font-size:10px;color:var(--muted);min-width:44px;text-align:right}
+
+  /* ── BAR LIST ── */
+  .bar-list{display:flex;flex-direction:column;gap:11px}
+  .bar-item{}
+  .bar-meta{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+  .bar-name{font-size:12px;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px}
+  .bar-info{display:flex;gap:10px;align-items:baseline;flex-shrink:0}
+  .bar-count{font-size:12px;font-weight:600;color:var(--cream)}
+  .bar-pct{font-size:10px;color:var(--muted)}
+  .bar-track{height:5px;background:var(--surface2);border-radius:99px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--gold),#e8c97a);transition:width 1s cubic-bezier(.4,0,.2,1)}
+  .bar-fill.dim{background:linear-gradient(90deg,rgba(196,163,90,.35),rgba(196,163,90,.2))}
+
+  /* ── EMAIL SPLIT ── */
+  .email-split{display:flex;gap:12px;margin-top:4px}
+  .email-half{flex:1;border-radius:var(--radius-sm);padding:18px 14px;text-align:center}
+  .email-half.fake{background:rgba(240,110,110,.1);border:1px solid rgba(240,110,110,.2)}
+  .email-half.real{background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.2)}
+  .email-half .eh-pct{font-family:'DM Serif Display',serif;font-size:36px;line-height:1;display:block;margin-bottom:4px}
+  .email-half.fake .eh-pct{color:var(--red)} .email-half.real .eh-pct{color:var(--green)}
+  .email-half .eh-lbl{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+  .email-half .eh-count{font-size:11px;color:var(--muted);margin-top:5px;display:block}
+
+  /* ── ALERT ── */
+  .alert{background:rgba(173,12,39,.15);border:1px solid rgba(173,12,39,.3);border-radius:var(--radius-sm);padding:12px 14px;font-size:12px;line-height:1.6;color:#f0a0a0;margin-top:14px}
+  .alert strong{color:#f07070}
+
+  /* ── CONTATO LIST ── */
+  .contato-list{display:flex;flex-direction:column;gap:7px}
+  .contato-item{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface2);border-radius:var(--radius-sm)}
+  .contato-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .contato-name{font-size:12px;color:var(--cream);flex:1}
+  .contato-num{font-size:12px;font-weight:600;color:var(--cream)}
+  .contato-pct{font-size:10px;color:var(--muted);min-width:40px;text-align:right}
+
+  /* ── CHART AREA ── */
+  .chart-area{position:relative;height:210px}
+
+  /* ── FOOTER ── */
+  .footer{margin-top:36px;text-align:center;font-size:11px;letter-spacing:.06em;color:var(--muted)}
+  .footer span{color:var(--gold)}
+
+  /* ════════════════════════════════════
+     COMPARATIVO TAB
+  ════════════════════════════════════ */
+  .comp-header{display:flex;align-items:center;gap:14px;margin-bottom:22px}
+  .comp-week-pill{padding:7px 16px;border-radius:100px;font-size:12px;font-weight:600}
+  .comp-week-pill.old{background:rgba(110,184,240,.12);border:1px solid rgba(110,184,240,.3);color:var(--blue)}
+  .comp-week-pill.new{background:var(--gold-dim);border:1px solid var(--border);color:var(--gold)}
+  .comp-arrow{font-size:16px;color:var(--muted)}
+
+  .delta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+  .delta-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 18px}
+  .delta-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+  .delta-vals{display:flex;gap:16px;align-items:flex-end;margin-bottom:10px}
+  .delta-old{font-size:18px;color:var(--muted);font-family:'DM Serif Display',serif}
+  .delta-arrow-mid{font-size:12px;color:var(--muted);margin-bottom:2px}
+  .delta-new{font-size:28px;color:var(--cream);font-family:'DM Serif Display',serif;line-height:1}
+  .delta-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:100px;font-size:11px;font-weight:600}
+  .delta-badge.up{background:rgba(62,207,142,.12);color:var(--green)}
+  .delta-badge.down{background:rgba(240,110,110,.12);color:var(--red)}
+  .delta-badge.flat{background:var(--gold-dim);color:var(--gold)}
+
+  .comp-section-title{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:14px}
+
+  .comp-row-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-bottom:20px}
+  .comp-bars-wrap{display:flex;flex-direction:column;gap:14px}
+  .comp-bar-item{display:flex;flex-direction:column;gap:5px}
+  .comp-bar-meta{display:flex;justify-content:space-between;font-size:12px}
+  .comp-bar-name{color:var(--cream)}
+  .comp-bar-nums{display:flex;gap:12px;color:var(--muted);font-size:11px}
+  .comp-bar-nums span.diff-up{color:var(--green)}
+  .comp-bar-nums span.diff-down{color:var(--red)}
+  .comp-double-bar{display:flex;flex-direction:column;gap:3px}
+  .comp-double-bar .bar-track{height:4px;position:relative}
+  .comp-double-bar .bar-fill-old{height:100%;border-radius:99px;background:rgba(110,184,240,.5);transition:width 1s}
+  .comp-double-bar .bar-fill-new{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--gold),#e8c97a);transition:width 1s}
+  .bar-legend-row{display:flex;gap:16px;margin-top:8px}
+  .bar-legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)}
+  .bar-legend-dot{width:8px;height:8px;border-radius:2px}
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:900px){
+    .kpi-strip,.delta-grid{grid-template-columns:1fr 1fr}
+    .grid-2,.grid-3{grid-template-columns:1fr}
+  }
+  @media(max-width:500px){
+    .kpi-strip,.delta-grid{grid-template-columns:1fr}
+    body{padding:16px 12px 48px}
+    .nav-tabs{overflow-x:auto;padding-bottom:0}
+  }
+
+  /* ── ANIMATIONS ── */
+  .kpi,.card,.delta-card,.comp-row-card{animation:fadeUp .45s ease both}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  .kpi:nth-child(1){animation-delay:.04s} .kpi:nth-child(2){animation-delay:.08s}
+  .kpi:nth-child(3){animation-delay:.12s} .kpi:nth-child(4){animation-delay:.16s}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <div class="eyebrow">Análise da Base de Clientes · Zahil Vinhos</div>
+    <h1>Visão Geral da <em>Carteira</em></h1>
+  </div>
+  <div class="header-right">
+    <div class="week-badge">
+      <span class="num">16.657</span>
+      <span class="lbl">Semana anterior</span>
+    </div>
+    <div class="week-badge" style="border-color:var(--gold);background:var(--gold-dim)">
+      <span class="num" style="color:var(--gold)">16.676</span>
+      <span class="lbl">30/03/2026</span>
+    </div>
+  </div>
+</div>
+
+<!-- NAV TABS -->
+<div class="nav-tabs">
+  <button class="tab-btn active" onclick="switchTab('atual')">📅 Semana Atual (30/03)</button>
+  <button class="tab-btn" onclick="switchTab('anterior')">📁 Semana Anterior</button>
+  <button class="tab-btn" onclick="switchTab('comparativo')">⚖️ Comparativo Semanal</button>
+</div>
+
+<!-- ══════════════════════════
+     TAB: SEMANA ATUAL
+══════════════════════════ -->
+<div id="tab-atual" class="tab-pane active">
+
+  <div class="kpi-strip">
+    <div class="kpi gold">
+      <div class="kpi-label">Clientes Ativos</div>
+      <div class="kpi-value">2.517</div>
+      <div class="kpi-sub">Compraram nos últimos 18 meses</div>
+      <div class="kpi-pct">15,1% da base</div>
+    </div>
+    <div class="kpi red">
+      <div class="kpi-label">Inativos &gt;18 meses</div>
+      <div class="kpi-value">7.641</div>
+      <div class="kpi-sub">Jurubatuba · sem compra recente</div>
+      <div class="kpi-pct">45,8% da base</div>
+    </div>
+    <div class="kpi blue">
+      <div class="kpi-label">Nunca Compraram</div>
+      <div class="kpi-value">6.518</div>
+      <div class="kpi-sub">Cadastrados sem histórico de compra</div>
+      <div class="kpi-pct">39,1% da base</div>
+    </div>
+    <div class="kpi green">
+      <div class="kpi-label">E-mails Válidos</div>
+      <div class="kpi-value">8.168</div>
+      <div class="kpi-sub">E-mails reais disponíveis</div>
+      <div class="kpi-pct">49,0% da base</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v3.5l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Status de Inatividade
+      </div>
+      <div class="donut-wrap">
+        <canvas id="chartInat_A" style="max-height:190px"></canvas>
+        <div class="donut-center"><span class="dc-num">16.676</span><span class="dc-lbl">contatos</span></div>
+      </div>
+      <ul class="legend">
+        <li><span class="dot" style="background:#f06e6e"></span>Inativos &gt;18m<span class="count">7.641</span><span class="pct">45,8%</span></li>
+        <li><span class="dot" style="background:#6eb8f0"></span>Nunca compraram<span class="count">6.518</span><span class="pct">39,1%</span></li>
+        <li><span class="dot" style="background:#3ecf8e"></span>Ativos (até 18m)<span class="count">2.517</span><span class="pct">15,1%</span></li>
+      </ul>
+      <div class="alert"><strong>⚠ Atenção:</strong> 84,9% da base está inativa ou nunca comprou.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M2 4h12v9H2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M2 4l6 5 6-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Tipo de Contato
+      </div>
+      <div class="contato-list">
+        <div class="contato-item"><span class="contato-dot" style="background:#C4A35A"></span><span class="contato-name">Cliente Itaim</span><span class="contato-num">7.936</span><span class="contato-pct">47,6%</span></div>
+        <div class="contato-item"><span class="contato-dot" style="background:#6eb8f0"></span><span class="contato-name">Cliente Campinas</span><span class="contato-num">7.622</span><span class="contato-pct">45,7%</span></div>
+        <div class="contato-item"><span class="contato-dot" style="background:#888"></span><span class="contato-name">Sem Preenchimento</span><span class="contato-num">503</span><span class="contato-pct">3,0%</span></div>
+        <div class="contato-item"><span class="contato-dot" style="background:#AD0C27"></span><span class="contato-name">Carteira Jurubatuba</span><span class="contato-num">321</span><span class="contato-pct">1,9%</span></div>
+        <div class="contato-item"><span class="contato-dot" style="background:#3ecf8e"></span><span class="contato-name">Novo Cliente Jurubatuba</span><span class="contato-num">194</span><span class="contato-pct">1,2%</span></div>
+        <div class="contato-item"><span class="contato-dot" style="background:#c47ab0"></span><span class="contato-name">Corporativo VD</span><span class="contato-num">59</span><span class="contato-pct">0,4%</span></div>
+        <div class="contato-item"><span class="contato-dot" style="background:#e8a85c"></span><span class="contato-name">Atualizar Cadastro</span><span class="contato-num">23</span><span class="contato-pct">0,1%</span></div>
+        <div class="contato-item"><span class="contato-dot" style="background:#7eb87e"></span><span class="contato-name">Interessado Itaim</span><span class="contato-num">18</span><span class="contato-pct">0,1%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 16 16" fill="none"><circle cx="6" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M2 14c0-2.2 1.8-4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 10l1.5 1.5L14 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Vendedores com Mais Base
+      </div>
+      <div class="bar-list" id="barlist_A"></div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="card">
+        <div class="card-title">Qualidade de E-mail</div>
+        <div class="email-split">
+          <div class="email-half fake"><span class="eh-pct">51,0%</span><span class="eh-lbl">Fake / Inválido</span><span class="eh-count">8.508 contatos</span></div>
+          <div class="email-half real"><span class="eh-pct">49,0%</span><span class="eh-lbl">E-mail Válido</span><span class="eh-count">8.168 contatos</span></div>
+        </div>
+        <div class="alert" style="margin-top:12px"><strong>Impacto:</strong> Mais da metade da base não pode ser ativada por e-mail.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Top 5 Vendedores · Participação</div>
+        <div class="chart-area"><canvas id="chartVend_A"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════
+     TAB: SEMANA ANTERIOR
+══════════════════════════ -->
+<div id="tab-anterior" class="tab-pane">
+
+  <div class="kpi-strip">
+    <div class="kpi gold">
+      <div class="kpi-label">Clientes Ativos</div>
+      <div class="kpi-value">3.140</div>
+      <div class="kpi-sub">Compraram nos últimos 18 meses</div>
+      <div class="kpi-pct">18,9% da base</div>
+    </div>
+    <div class="kpi red">
+      <div class="kpi-label">Inativos &gt;18 meses</div>
+      <div class="kpi-value">6.783</div>
+      <div class="kpi-sub">Jurubatuba · sem compra recente</div>
+      <div class="kpi-pct">40,7% da base</div>
+    </div>
+    <div class="kpi blue">
+      <div class="kpi-label">Nunca Compraram</div>
+      <div class="kpi-value">6.734</div>
+      <div class="kpi-sub">Cadastrados sem histórico de compra</div>
+      <div class="kpi-pct">40,4% da base</div>
+    </div>
+    <div class="kpi green">
+      <div class="kpi-label">E-mails Válidos</div>
+      <div class="kpi-value">8.158</div>
+      <div class="kpi-sub">E-mails reais disponíveis</div>
+      <div class="kpi-pct">49,0% da base</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v3.5l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Status de Inatividade
+      </div>
+      <div class="donut-wrap">
+        <canvas id="chartInat_B" style="max-height:190px"></canvas>
+        <div class="donut-center"><span class="dc-num">16.657</span><span class="dc-lbl">contatos</span></div>
+      </div>
+      <ul class="legend">
+        <li><span class="dot" style="background:#f06e6e"></span>Inativos &gt;18m<span class="count">6.783</span><span class="pct">40,7%</span></li>
+        <li><span class="dot" style="background:#6eb8f0"></span>Nunca compraram<span class="count">6.734</span><span class="pct">40,4%</span></li>
+        <li><span class="dot" style="background:#3ecf8e"></span>Ativos (até 18m)<span class="count">3.140</span><span class="pct">18,9%</span></li>
+      </ul>
+      <div class="alert"><strong>⚠ Atenção:</strong> 81,1% da base estava inativa ou nunca havia comprado.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M2 4h12v9H2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M2 4l6 5 6-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Tipo de Contato
+      </div>
+      <div class="contato-list">
+        <div class="contato-item"><span class="contato-dot" style="background:#C4A35A"></span><span class="contato-name">Cliente Itaim</span><span class="contato-num">7.921</span><span class="contato-pct">47,6%</span></div>
+        <div class="contato-item"><span class="contato-dot" style="background:#6eb8f0"></span><span class="contato-name">Cliente Campinas</span><span class="contato-num">7.619</span><span class="contato-pct">45,7%</span></div>
+        <div class="contato-item"><span class="contato-dot" style="background:#888"></span><span class="contato-name">Sem Preenchimento</span><span class="contato-num">502</span><span class="contato-pct">3,0%</span></div>
+        <div class="contato-item"><span class="contato-dot" style="background:#AD0C27"></span><span class="contato-name">Carteira Jurubatuba</span><span class="contato-num">321</span><span class="contato-pct">1,9%</span></div>
+        <div class="contato-item"><span class="contato-dot" style="background:#3ecf8e"></span><span class="contato-name">Novo Cliente Jurubatuba</span><span class="contato-num">194</span><span class="contato-pct">1,2%</span></div>
+        <div class="contato-item"><span class="contato-dot" style="background:#c47ab0"></span><span class="contato-name">Corporativo VD</span><span class="contato-num">59</span><span class="contato-pct">0,4%</span></div>
+        <div class="contato-item"><span class="contato-dot" style="background:#e8a85c"></span><span class="contato-name">Atualizar Cadastro</span><span class="contato-num">23</span><span class="contato-pct">0,1%</span></div>
+        <div class="contato-item"><span class="contato-dot" style="background:#7eb87e"></span><span class="contato-name">Interessado Itaim</span><span class="contato-num">18</span><span class="contato-pct">0,1%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Vendedores com Mais Base</div>
+      <div class="bar-list" id="barlist_B"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="card">
+        <div class="card-title">Qualidade de E-mail</div>
+        <div class="email-split">
+          <div class="email-half fake"><span class="eh-pct">51,0%</span><span class="eh-lbl">Fake / Inválido</span><span class="eh-count">8.499 contatos</span></div>
+          <div class="email-half real"><span class="eh-pct">49,0%</span><span class="eh-lbl">E-mail Válido</span><span class="eh-count">8.158 contatos</span></div>
+        </div>
+        <div class="alert" style="margin-top:12px"><strong>Impacto:</strong> Mais da metade da base não pode ser ativada por e-mail.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Top 5 Vendedores · Participação</div>
+        <div class="chart-area"><canvas id="chartVend_B"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════
+     TAB: COMPARATIVO
+══════════════════════════ -->
+<div id="tab-comparativo" class="tab-pane">
+
+  <div class="comp-header">
+    <span class="comp-week-pill old">📁 Semana Anterior</span>
+    <span class="comp-arrow">→</span>
+    <span class="comp-week-pill new">📅 30/03/2026</span>
+  </div>
+
+  <!-- Delta KPIs -->
+  <div class="delta-grid">
+    <div class="delta-card">
+      <div class="delta-label">Total de Contatos</div>
+      <div class="delta-vals">
+        <div class="delta-old">16.657</div>
+        <div class="delta-arrow-mid">→</div>
+        <div class="delta-new">16.676</div>
+      </div>
+      <span class="delta-badge up">▲ +19 contatos</span>
+    </div>
+    <div class="delta-card">
+      <div class="delta-label">Clientes Ativos (≤18m)</div>
+      <div class="delta-vals">
+        <div class="delta-old">3.140</div>
+        <div class="delta-arrow-mid">→</div>
+        <div class="delta-new">2.517</div>
+      </div>
+      <span class="delta-badge down">▼ −623 ativos</span>
+    </div>
+    <div class="delta-card">
+      <div class="delta-label">Inativos &gt;18 meses</div>
+      <div class="delta-vals">
+        <div class="delta-old">6.783</div>
+        <div class="delta-arrow-mid">→</div>
+        <div class="delta-new">7.641</div>
+      </div>
+      <span class="delta-badge down">▼ +858 inativos</span>
+    </div>
+    <div class="delta-card">
+      <div class="delta-label">E-mails Válidos</div>
+      <div class="delta-vals">
+        <div class="delta-old">8.158</div>
+        <div class="delta-arrow-mid">→</div>
+        <div class="delta-new">8.168</div>
+      </div>
+      <span class="delta-badge up">▲ +10 válidos</span>
+    </div>
+  </div>
+
+  <!-- Inatividade comparativo -->
+  <div class="comp-row-card">
+    <div class="comp-section-title">📊 Inatividade — Evolução Semanal</div>
+    <div class="bar-legend-row" style="margin-bottom:16px">
+      <div class="bar-legend-item"><div class="bar-legend-dot" style="background:rgba(110,184,240,.5)"></div>Semana Anterior</div>
+      <div class="bar-legend-item"><div class="bar-legend-dot" style="background:var(--gold)"></div>Semana Atual</div>
+    </div>
+    <div class="comp-bars-wrap" id="comp-inat-bars"></div>
+  </div>
+
+  <!-- Vendedores comparativo -->
+  <div class="comp-row-card">
+    <div class="comp-section-title">👤 Vendedores com Mais Base — Top 10 Evolução</div>
+    <div class="bar-legend-row" style="margin-bottom:16px">
+      <div class="bar-legend-item"><div class="bar-legend-dot" style="background:rgba(110,184,240,.5)"></div>Semana Anterior</div>
+      <div class="bar-legend-item"><div class="bar-legend-dot" style="background:var(--gold)"></div>Semana Atual</div>
+    </div>
+    <div class="comp-bars-wrap" id="comp-vend-bars"></div>
+  </div>
+
+  <!-- E-mail comparativo -->
+  <div class="comp-row-card">
+    <div class="comp-section-title">📧 Qualidade de E-mail</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px;font-weight:600;letter-spacing:.06em">SEMANA ANTERIOR</div>
+        <div class="email-split">
+          <div class="email-half fake"><span class="eh-pct">51,0%</span><span class="eh-lbl">Fake</span><span class="eh-count">8.499</span></div>
+          <div class="email-half real"><span class="eh-pct">49,0%</span><span class="eh-lbl">Válido</span><span class="eh-count">8.158</span></div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--gold);margin-bottom:10px;font-weight:600;letter-spacing:.06em">SEMANA ATUAL</div>
+        <div class="email-split">
+          <div class="email-half fake"><span class="eh-pct">51,0%</span><span class="eh-lbl">Fake</span><span class="eh-count">8.508</span></div>
+          <div class="email-half real"><span class="eh-pct">49,0%</span><span class="eh-lbl">Válido</span><span class="eh-count">8.168</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="alert" style="margin-top:14px">
+      <strong>Variação:</strong> E-mails fake aumentaram em +9 (de 8.499 para 8.508). Proporção permanece estável em ~51%.
+    </div>
+  </div>
+
+  <!-- Gráfico radar / barras comparativas -->
+  <div class="comp-row-card">
+    <div class="comp-section-title">📈 Distribuição de Inatividade — Gráfico Comparativo</div>
+    <div style="height:280px;position:relative"><canvas id="chartComp_inat"></canvas></div>
+  </div>
+
+</div>
+
+<div class="footer">Zahil Vinhos · Base de dados comparada | <span>Semana Anterior</span> vs <span>30/03/2026</span></div>
+
+<script>
+/* ─── DATA ─── */
+const TOTAL_A = 16676, TOTAL_B = 16657;
+
+const inat_A = [7641, 6518, 2517];
+const inat_B = [6783, 6734, 3140];
+
+const vend_A = [
+  {name:'🥇 Gabriel Varela',        n:5728, max:5728},
+  {name:'⚠ Sem Preenchimento',       n:2167, max:5728, dim:true},
+  {name:'🥈 Joice Costa',            n:1492, max:5728},
+  {name:'🥉 Maira de Oliveira',      n:1261, max:5728},
+  {name:'Regiane P. de Castro',     n:1117, max:5728},
+  {name:'Andrea di Russo',          n:1016, max:5728},
+  {name:'Barbarita Cancegliero',    n:786,  max:5728},
+  {name:'Rosiane Monteiro',         n:685,  max:5728},
+  {name:'Bianca Silva',             n:556,  max:5728},
+  {name:'Marta Maciel',             n:535,  max:5728},
+  {name:'Livia Correa',             n:522,  max:5728},
+  {name:'Tatiana Viegas',           n:370,  max:5728},
+  {name:'Demais vendedores',        n:319,  max:5728, dim:true},
+];
+const vend_B = [
+  {name:'🥇 Gabriel Varela',        n:5727, max:5727},
+  {name:'⚠ Sem Preenchimento',       n:2168, max:5727, dim:true},
+  {name:'🥈 Joice Costa',            n:1486, max:5727},
+  {name:'🥉 Maira de Oliveira',      n:1254, max:5727},
+  {name:'Regiane P. de Castro',     n:1115, max:5727},
+  {name:'Andrea di Russo',          n:1008, max:5727},
+  {name:'Barbarita Cancegliero',    n:786,  max:5727},
+  {name:'Rosiane Monteiro',         n:687,  max:5727},
+  {name:'Bianca Silva',             n:563,  max:5727},
+  {name:'Marta Maciel',             n:538,  max:5727},
+  {name:'Livia Correa',             n:521,  max:5727},
+  {name:'Tatiana Viegas',           n:364,  max:5727},
+  {name:'Demais vendedores',        n:440,  max:5727, dim:true},
+];
+
+const GOLD='#C4A35A', GREEN='#3ecf8e', RED='#f06e6e', BLUE='#6eb8f0', PURPLE='#c47ab0', MUTED='rgba(196,163,90,0.3)';
+
+Chart.defaults.color='rgba(250,247,245,0.5)';
+Chart.defaults.borderColor='rgba(196,163,90,0.1)';
+Chart.defaults.font.family="'DM Sans', sans-serif";
+
+const tooltip_style = {
+  backgroundColor:'#241f22', borderColor:'rgba(196,163,90,0.3)',
+  borderWidth:1, padding:11
+};
+
+/* ─── TAB SWITCH ─── */
+function switchTab(id) {
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+/* ─── RENDER BAR LIST ─── */
+function renderBarList(containerId, data, total) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = data.map(d => `
+    <div class="bar-item">
+      <div class="bar-meta">
+        <span class="bar-name${d.dim?' style="color:var(--muted)"':''}">${d.name}</span>
+        <div class="bar-info">
+          <span class="bar-count">${d.n.toLocaleString('pt-BR')}</span>
+          <span class="bar-pct">${((d.n/total)*100).toFixed(1)}%</span>
+        </div>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill${d.dim?' dim':''}" style="width:${((d.n/d.max)*100).toFixed(1)}%"></div>
+      </div>
+    </div>`).join('');
+}
+
+/* ─── RENDER COMP BARS ─── */
+function renderCompBars(containerId, items) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = items.map(item => {
+    const diffNum = item.nA - item.nB;
+    const diffClass = diffNum > 0 ? 'diff-up' : diffNum < 0 ? 'diff-down' : '';
+    const diffStr = diffNum > 0 ? `+${diffNum}` : `${diffNum}`;
+    const wA = ((item.nA/item.maxA)*100).toFixed(1);
+    const wB = ((item.nB/item.maxB)*100).toFixed(1);
+    return `
+      <div class="comp-bar-item">
+        <div class="comp-bar-meta">
+          <span class="comp-bar-name">${item.name}</span>
+          <div class="comp-bar-nums">
+            <span>Ant: ${item.nB.toLocaleString('pt-BR')}</span>
+            <span>Atual: ${item.nA.toLocaleString('pt-BR')}</span>
+            <span class="${diffClass}">${diffStr}</span>
+          </div>
+        </div>
+        <div class="comp-double-bar">
+          <div class="bar-track"><div class="bar-fill-old" style="width:${wB}%"></div></div>
+          <div class="bar-track"><div class="bar-fill-new" style="width:${wA}%"></div></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ─── CHARTS ─── */
+// Donut A
+new Chart(document.getElementById('chartInat_A'),{
+  type:'doughnut',
+  data:{labels:['Inativos >18m','Nunca compraram','Ativos (≤18m)'],
+    datasets:[{data:inat_A,backgroundColor:[RED,BLUE,GREEN],borderColor:'#1a1618',borderWidth:3,hoverOffset:6}]},
+  options:{cutout:'68%',responsive:true,plugins:{legend:{display:false},tooltip:{...tooltip_style,
+    callbacks:{label:ctx=>{const p=((ctx.parsed/TOTAL_A)*100).toFixed(1);return ` ${ctx.label}: ${ctx.parsed.toLocaleString('pt-BR')} (${p}%)`}}}}}
+});
+
+// Donut B
+new Chart(document.getElementById('chartInat_B'),{
+  type:'doughnut',
+  data:{labels:['Inativos >18m','Nunca compraram','Ativos (≤18m)'],
+    datasets:[{data:inat_B,backgroundColor:[RED,BLUE,GREEN],borderColor:'#1a1618',borderWidth:3,hoverOffset:6}]},
+  options:{cutout:'68%',responsive:true,plugins:{legend:{display:false},tooltip:{...tooltip_style,
+    callbacks:{label:ctx=>{const p=((ctx.parsed/TOTAL_B)*100).toFixed(1);return ` ${ctx.label}: ${ctx.parsed.toLocaleString('pt-BR')} (${p}%)`}}}}}
+});
+
+// Vend donut A
+new Chart(document.getElementById('chartVend_A'),{
+  type:'doughnut',
+  data:{labels:['Gabriel Varela','Joice Costa','Maira de Oliveira','Regiane P.','Andrea di Russo','Outros'],
+    datasets:[{data:[5728,1492,1261,1117,1016,TOTAL_A-5728-1492-1261-1117-1016],
+      backgroundColor:[GOLD,GREEN,BLUE,RED,PURPLE,MUTED],borderColor:'#1a1618',borderWidth:3,hoverOffset:5}]},
+  options:{cutout:'60%',responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:true,position:'right',labels:{boxWidth:9,boxHeight:9,padding:8,font:{size:10},color:'rgba(250,247,245,0.7)'}},
+      tooltip:{...tooltip_style,callbacks:{label:ctx=>{const p=((ctx.parsed/TOTAL_A)*100).toFixed(1);return ` ${ctx.label}: ${ctx.parsed.toLocaleString('pt-BR')} (${p}%)`}}}}}
+});
+
+// Vend donut B
+new Chart(document.getElementById('chartVend_B'),{
+  type:'doughnut',
+  data:{labels:['Gabriel Varela','Joice Costa','Maira de Oliveira','Regiane P.','Andrea di Russo','Outros'],
+    datasets:[{data:[5727,1486,1254,1115,1008,TOTAL_B-5727-1486-1254-1115-1008],
+      backgroundColor:[GOLD,GREEN,BLUE,RED,PURPLE,MUTED],borderColor:'#1a1618',borderWidth:3,hoverOffset:5}]},
+  options:{cutout:'60%',responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:true,position:'right',labels:{boxWidth:9,boxHeight:9,padding:8,font:{size:10},color:'rgba(250,247,245,0.7)'}},
+      tooltip:{...tooltip_style,callbacks:{label:ctx=>{const p=((ctx.parsed/TOTAL_B)*100).toFixed(1);return ` ${ctx.label}: ${ctx.parsed.toLocaleString('pt-BR')} (${p}%)`}}}}}
+});
+
+// Comp radar/bar
+new Chart(document.getElementById('chartComp_inat'),{
+  type:'bar',
+  data:{
+    labels:['Inativos >18m','Nunca Compraram','Ativos (≤18m)'],
+    datasets:[
+      {label:'Semana Anterior',data:inat_B,backgroundColor:'rgba(110,184,240,0.5)',borderColor:BLUE,borderWidth:1.5},
+      {label:'Semana Atual',data:inat_A,backgroundColor:'rgba(196,163,90,0.6)',borderColor:GOLD,borderWidth:1.5}
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:false,
+    scales:{y:{beginAtZero:true,grid:{color:'rgba(196,163,90,0.06)'},ticks:{color:'rgba(250,247,245,0.4)'}},
+            x:{grid:{display:false},ticks:{color:'rgba(250,247,245,0.6)'}}},
+    plugins:{legend:{position:'top',labels:{boxWidth:10,boxHeight:10,color:'rgba(250,247,245,0.7)'}},
+             tooltip:{...tooltip_style,callbacks:{label:ctx=>{const p=((ctx.parsed.y/(ctx.datasetIndex===0?TOTAL_B:TOTAL_A))*100).toFixed(1);return ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString('pt-BR')} (${p}%)`}}}}}
+});
+
+/* ─── RENDER LISTS ─── */
+renderBarList('barlist_A', vend_A, TOTAL_A);
+renderBarList('barlist_B', vend_B, TOTAL_B);
+
+/* ─── RENDER COMP BARS ─── */
+const inatItems = [
+  {name:'Inativos >18 meses', nA:7641, nB:6783, maxA:7641, maxB:6783},
+  {name:'Nunca Compraram',    nA:6518, nB:6734, maxA:7641, maxB:6783},
+  {name:'Ativos (≤18m)',      nA:2517, nB:3140, maxA:7641, maxB:6783},
+];
+renderCompBars('comp-inat-bars', inatItems);
+
+const vendTop10_A = [5728,2167,1492,1261,1117,1016,786,685,556,535];
+const vendTop10_B = [5727,2168,1486,1254,1115,1008,786,687,563,538];
+const vendNames = ['Gabriel Varela','Sem Preenchimento','Joice Costa','Maira de Oliveira','Regiane P. Castro','Andrea di Russo','Barbarita Cancegliero','Rosiane Monteiro','Bianca Silva','Marta Maciel'];
+const maxA = Math.max(...vendTop10_A), maxB = Math.max(...vendTop10_B);
+const vendCompItems = vendNames.map((n,i)=>({name:n, nA:vendTop10_A[i], nB:vendTop10_B[i], maxA, maxB}));
+renderCompBars('comp-vend-bars', vendCompItems);
+</script>
+</body>
+</html>
